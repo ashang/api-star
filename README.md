@@ -3,9 +3,9 @@
 [![travis-badge]][travis]
 [![pypi-badge]][pypi]
 
-*An API framework for Flask & Falcon.*
+**An API framework for Python.**
 
-* Flask and Falcon backends.
+* Support for both Flask & Falcon backends.
 * Automatic schema & documentation generation.
 * Dynamic client libraries for interacting with your APIs.
 

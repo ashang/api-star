@@ -5,6 +5,7 @@ from api_star.test import TestSession
 
 
 app = App(__name__, title='Day of Week API')
+app.debug = True
 
 
 @app.get('/day-of-week/')
@@ -18,4 +19,27 @@ def day_of_week(date):
 
 def test_success():
     session = TestSession(app)
-    session.get('/day-of-week/', params={'date': '2001-01-01'})
+    response = session.get('/day-of-week/', params={'date': '2001-01-01'})
+    assert response.status_code == 200
+    assert response.json() == {'day': 'Monday'}
+
+
+def test_invalid_parameter():
+    session = TestSession(app)
+    response = session.get('/day-of-week/', params={'date': 'foo'})
+    assert response.status_code == 400
+    assert response.json() == {'date': 'Not a valid date value.'}
+
+
+def test_invalid_blank_parameter():
+    session = TestSession(app)
+    response = session.get('/day-of-week/', params={'date': ''})
+    assert response.status_code == 400
+    assert response.json() == {'date': 'May not be blank.'}
+
+
+def test_missing_parameter():
+    session = TestSession(app)
+    response = session.get('/day-of-week/')
+    assert response.status_code == 400
+    assert response.json() == {'date': 'This parameter is required.'}

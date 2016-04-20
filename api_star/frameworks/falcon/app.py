@@ -1,5 +1,6 @@
 from api_star.core import check_permissions, render
-from api_star.exceptions import APIException, NotAcceptable
+from api_star.compat import string_types
+from api_star.exceptions import APIException, BadRequest, NotAcceptable
 from api_star.frameworks.falcon.request import APIRequest
 from api_star.frameworks.falcon.response import APIResponse
 from api_star.schema import get_link
@@ -14,12 +15,21 @@ def error_handler(exc, request, response, params):
     except NotAcceptable as exc:
         pass
 
-    data = {'message': exc.description}
+    if isinstance(exc.description, string_types):
+        data = {'message': exc.description}
+    else:
+        data = exc.description
+
     content, content_type = render(request, data)
     if content_type:
         response.set_header('Content-Type', content_type)
     response.body = content
     response.status = str(exc.code)  # TODO: Blergh
+
+
+class CustomRequestOptions(object):
+    keep_blank_qs_values = True
+    auto_parse_form_urlencoded = False
 
 
 class App(falcon.API):
@@ -38,6 +48,7 @@ class App(falcon.API):
             kwargs['request_type'] = App.request_class
         super(App, self).__init__(**kwargs)
         self.add_error_handler(APIException, error_handler)
+        self.req_options = CustomRequestOptions()
 
     def get(self, url, **options):
         return self.api_route(url, 'GET', **options)
@@ -76,15 +87,24 @@ class App(falcon.API):
                 self.schema = coreapi.Document(title=self.title, content=self.links)
 
             def wrapper(request, response, **params):
+                errors = {}
+
                 for field in func.link.fields:
                     if field.location == 'form':
                         if field.name in request.data:
                             params[field.name] = request.data[field.name]
+                        elif field.required:
+                            errors[field.name] = 'This parameter is required.'
                     elif field.location == 'query':
                         if field.name in request.params:
                             params[field.name] = request.params[field.name]
+                        elif field.required:
+                            errors[field.name] = 'This parameter is required.'
                     elif field.location == 'body':
                         params[field.name] = request.data
+
+                if errors:
+                    raise BadRequest(errors)
 
                 if renderers is not None:
                     request.renderers = renderers

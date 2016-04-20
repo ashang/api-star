@@ -2,7 +2,8 @@
 from __future__ import unicode_literals
 from flask import request, Flask
 from api_star.core import check_permissions
-from api_star.exceptions import APIException
+from api_star.compat import string_types
+from api_star.exceptions import APIException, BadRequest
 from api_star.frameworks.flask.request import APIRequest
 from api_star.frameworks.flask.response import APIResponse
 from api_star.schema import get_link
@@ -52,7 +53,11 @@ class App(Flask):
         ret = super(App, self).handle_http_exception(e)
 
         if isinstance(ret, (HTTPException, APIException)):
-            return APIResponse({'message': e.description}, status=e.code)
+            if isinstance(e.description, string_types):
+                data = {'message': e.description}
+            else:
+                data = e.description
+            return APIResponse(data, status=e.code)
 
         return ret
 
@@ -96,15 +101,23 @@ class App(Flask):
                 self.schema = coreapi.Document(title=self.title, content=self.links)
 
             def wrapper(**params):
+                errors = {}
                 for field in func.link.fields:
                     if field.location == 'form':
                         if field.name in request.data:
                             params[field.name] = request.data[field.name]
+                        elif field.required:
+                            errors[field.name] = 'This parameter is required.'
                     elif field.location == 'query':
                         if field.name in request.args:
                             params[field.name] = request.args[field.name]
+                        elif field.required:
+                            errors[field.name] = 'This parameter is required.'
                     elif field.location == 'body':
                         params[field.name] = request.data
+
+                if errors:
+                    raise BadRequest(errors)
 
                 if renderers is not None:
                     request.renderers = renderers

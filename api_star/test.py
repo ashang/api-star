@@ -1,34 +1,11 @@
-import io
 from api_star.compat import urlparse
 from requests.adapters import BaseAdapter
 from requests.models import Response
 from requests.sessions import Session
 from requests.structures import CaseInsensitiveDict
 from requests.utils import get_encoding_from_headers
+import io
 import sys
-
-
-class Content(object):
-
-    def __init__(self, content):
-        self._len = len(content)
-        self._read = 0
-        self._bytes = io.BytesIO(content)
-
-    def __len__(self):
-        return self._len
-
-    def read(self, amt=None):
-        if amt:
-            self._read += amt
-        return self._bytes.read(amt)
-
-    def stream(self, amt=None, decode_content=None):
-        while self._read < self._len:
-            yield self.read(amt)
-
-    def release_conn(self):
-        pass
 
 
 class WSGIAdapter(BaseAdapter):
@@ -51,7 +28,7 @@ class WSGIAdapter(BaseAdapter):
             'SERVER_PROTOCOL': 'HTTP/1.1',
             'wsgi.version': (1, 0),
             'wsgi.url_scheme': urlinfo.scheme,
-            'wsgi.input': Content(data),
+            'wsgi.input': io.BytesIO(data),
             'wsgi.errors': sys.stderr,
             'wsgi.multiprocess': False,
             'wsgi.multithread': False,
@@ -74,7 +51,7 @@ class WSGIAdapter(BaseAdapter):
         response.request = request
         response.url = request.url
 
-        response.raw = Content(b''.join(self.app(environ, start_response)))
+        response.raw = io.BytesIO(b''.join(self.app(environ, start_response)))
 
         return response
 

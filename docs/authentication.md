@@ -21,7 +21,7 @@ include an appropriate list of permission policies.
 To configure the authentication policy for a particular view, include a list of
 authenticators when routing to the view.
 
-    app.get('/organisations/', authenticators=[...])
+    @app.get('/organisations/', authenticators=[...])
     def list_organisations():
         ...
 
